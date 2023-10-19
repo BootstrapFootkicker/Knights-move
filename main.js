@@ -18,44 +18,7 @@ class Node {
     }
   }
 }
-class Knight {
-  constructor(x, y) {
-    this.currentX = x;
-    this.currentY = y;
-    this.currentCoords = [x, y];
-    this.possibleMoves = [
-      [this.currentX + 1, this.currentY + 2],
-      [this.currentX + 2, this.currentY + 1],
-      [this.currentX - 1, this.currentY + 2],
-      [this.currentX + 2, this.currentY - 1],
-      [this.currentX + 1, this.currentY - 2],
-      [this.currentX + 2, this.currentY + 1],
-      [this.currentX + 2, this.currentY + 1],
-      [this.currentX - 2, this.currentY - 1],
-      [this.currentX - 1, this.currentY - 2],
-    ];
-  }
 
-  knightMoves(startNode, endNode) {
-    let queue = [];
-    let path = [];
-    let currentNode = startNode;
-    queue.push(startNode);
-    while (queue.length > 0 && currentNode !== endNode) {
-      currentNode = queue.shift();
-
-      path.push(currentNode.coords);
-      if (currentNode.hasEdges() == true && currentNode.visited == false) {
-        currentNode.visited = true;
-        currentNode.edges.forEach((edge) => {
-          queue.push(edge);
-        });
-      }
-    }
-    return path;
-  }
-}
-//todo figure out movement and create function to move knight
 class Graph {
   constructor() {
     this.nodesList = [];
@@ -122,16 +85,8 @@ class Graph {
 class ChessBoard {
   constructor() {
     this.board = new Graph();
-    this.knight = new Knight(0, 0);
   }
-  calculateDistance(node1, node2) {
-    let x1 = node1.x;
-    let y1 = node1.y;
-    let x2 = node2.x;
-    let y2 = node2.y;
-    let distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-    return distance;
-  }
+
   createWallNodes() {
     let wallNodes = [];
     for (let i = 1; i <= 6; i++) {
@@ -181,6 +136,7 @@ class ChessBoard {
   }
 
   createBoardEdges() {
+    //app possible knight moves to each node
     this.board.nodesList.forEach((node) => {
       //corner nodes
       this.board.addEdge(
@@ -228,37 +184,58 @@ class ChessBoard {
     return sortedChessBoard;
   }
 
+  //dijkstra's algorithm
   findShortestPath(startNode, endNode) {
-    let queue = [];
+    let distances = {};
+    let previous = {};
+    let unvisited = [];
     let path = [];
     let currentNode = startNode;
-    queue.push(startNode);
-    while (queue.length > 0 && currentNode !== endNode) {
-      let possibleMoves = [
-        [currentNode.x + 1, currentNode.y + 2],
-        [currentNode.x + 2, currentNode.y + 1],
-        [currentNode.x - 1, currentNode.y + 2],
-        [currentNode.x + 2, currentNode.y - 1],
-        [currentNode.x + 1, currentNode.y - 2],
-        [currentNode.x + 2, currentNode.y + 1],
-        [currentNode.x + 2, currentNode.y + 1],
-        [currentNode.x - 2, currentNode.y - 1],
-        [currentNode.x - 1, currentNode.y - 2],
-      ];
-      let possibleMovesNodes = [];
-      possibleMoves.forEach((move) => {
-        possibleMovesNodes.push(this.board.findNodeInList(move[0], move[1]));
-      });
-      let nodeDistances = [];
-      // possibleMovesNodes.forEach((node) => {
-      //   nodeDistances.push(this.calculateDistance(node, endNode));
-      // });
-      //console.log(possibleMovesNodes);
-      let minDistance = Math.min(...nodeDistances);
-      console.log(minDistance);
-    }
 
-    return;
+    this.board.nodesList.forEach((node) => {
+      if (node !== startNode) {
+        distances[node.coords] = Infinity;
+        previous[node.coords] = null;
+      } else {
+        distances[node.coords] = 0;
+        previous[node.coords] = null;
+      }
+      unvisited.push(node);
+    });
+
+    while (unvisited.length > 0) {
+      currentNode = unvisited.reduce((minNode, node) => {
+        if (distances[node.coords] < distances[minNode.coords]) {
+          return node;
+        } else {
+          return minNode;
+        }
+      });
+
+      unvisited.splice(unvisited.indexOf(currentNode), 1);
+
+      if (currentNode === endNode) {
+        while (previous[currentNode.coords]) {
+          path.push(currentNode.coords);
+          currentNode = previous[currentNode.coords];
+        }
+        break;
+      }
+
+      if (distances[currentNode.coords] === Infinity) {
+        break;
+      }
+
+      currentNode.edges.forEach((edge) => {
+        let potentialDistance = distances[currentNode.coords] + 1;
+        if (potentialDistance < distances[edge.coords]) {
+          distances[edge.coords] = potentialDistance;
+          previous[edge.coords] = currentNode;
+        }
+      });
+    }
+    path.push(startNode.coords);
+    return path.reverse();
   }
 
   printCornerNodes() {
@@ -278,52 +255,13 @@ class ChessBoard {
   }
 }
 
-let graph = new Graph();
-
 let chessBoard1 = new ChessBoard();
 
 chessBoard1.createBoard();
 
-// console.log(chessBoard1.createWallNodes());
-// console.log(chessBoard1.createCornerNodes());
-//chessBoard1.board.printNodes();
-
-// console.log(chessBoard1.createNormalNodes());
-
-/*console.log(sortArrayByXandY(array1));
-
-console.log(chessBoard1.sortChessBoardCoords());*/
-
-// chessBoard1.board.printNodes();
-//chessBoard1.printCornerNodes();
-// chessBoard1.board.printEdges();
-
-// let sevenFiveNode = chessBoard1.board.findNodeInList(7, 5);
-// console.log(sevenFiveNode.edges.forEach((edge) => console.log(edge.coords)));
-
 console.log(
-  chessBoard1.calculateDistance(
-    chessBoard1.board.findNodeInList(7, 7),
+  chessBoard1.findShortestPath(
     chessBoard1.board.findNodeInList(0, 0),
+    chessBoard1.board.findNodeInList(7, 7),
   ),
 );
-// console.log(
-//   chessBoard1.knight.knightMoves(
-//     chessBoard1.board.findNodeInList(0, 0),
-//     chessBoard1.board.findNodeInList(7, 7),
-//   ),
-// );
-
-// console.log(
-//   chessBoard1.findShortestPath(
-//     chessBoard1.board.findNodeInList(0, 2),
-//     chessBoard1.board.findNodeInList(7, 7),
-//   ),
-// );
-
-console.log(
-  chessBoard1.board
-    .findNodeInList(3, 3)
-    .edges.forEach((edge) => console.log(edge.coords)),
-);
-chessBoard1.board.printEdges();
