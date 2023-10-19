@@ -6,12 +6,56 @@ class Node {
     this.y = y;
     this.coords = [x, y];
     this.visited = false;
-    this.distance = 0;
+    this.distances = {};
     this.edges = [];
     this.nodePositionType = nodePositionType || ""; //wall,corner,normal
   }
+  hasEdges() {
+    if (this.edges.length > 0) {
+      return true;
+    } else {
+      return false;
+    }
+  }
 }
+class Knight {
+  constructor(x, y) {
+    this.currentX = x;
+    this.currentY = y;
+    this.currentCoords = [x, y];
+    this.possibleMoves = [
+      [this.currentX + 1, this.currentY + 2],
+      [this.currentX + 2, this.currentY + 1],
+      [this.currentX - 1, this.currentY + 2],
+      [this.currentX + 2, this.currentY - 1],
+      [this.currentX + 1, this.currentY - 2],
+      [this.currentX + 2, this.currentY + 1],
+      [this.currentX + 2, this.currentY + 1],
+      [this.currentX - 2, this.currentY - 1],
+      [this.currentX - 1, this.currentY - 2],
+    ];
+  }
 
+  knightMoves(startNode, endNode) {
+    let queue = [];
+    let path = [];
+    let currentNode = startNode;
+    queue.push(startNode);
+    while (queue.length > 0 && currentNode !== endNode) {
+      currentNode = queue.shift();
+
+      path.push(currentNode.coords);
+      if (currentNode.hasEdges() == true && currentNode.visited == false) {
+        currentNode.visited = true;
+        currentNode.edges.forEach((edge) => {
+          queue.push(edge);
+        });
+      }
+    }
+    return path;
+  }
+}
+//todo figure out movement and create function to move knight
 class Graph {
   constructor() {
     this.nodesList = [];
@@ -23,13 +67,25 @@ class Graph {
 
   addEdge(node1, node2) {
     //node1.edges.push(node2);
-    node2.edges.push(node1);
+    if (
+      node1 !== null &&
+      node2 !== null &&
+      node1 !== node2 &&
+      node1.edges.includes(node2) === false &&
+      node2.edges.includes(node1) === false
+    ) {
+      node2.edges.push(node1);
+      node1.edges.push(node2);
+    }
   }
 
   findNodeInList(x, y) {
     let node = this.nodesList.find((node) => {
       return node.x === x && node.y === y;
     });
+    if (node === undefined) {
+      return null;
+    }
 
     return node;
   }
@@ -48,19 +104,34 @@ class Graph {
 
   printEdges() {
     this.nodesList.forEach((node) => {
-      console.log(`Node (${node.x}, ${node.y}) has edges to:`);
-      node.edges.forEach((edge) => {
-        console.log(`(${edge.x}, ${edge.y})`);
-      });
+      if (node.edges.length === 0) {
+        console.log(`Node (${node.x}, ${node.y}) has no edges`);
+        return;
+      } else if (node.edges.length > 0) {
+        console.log(`Node (${node.x}, ${node.y}) has edges to:`);
+        node.edges.forEach((edge) => {
+          console.log(`(${edge.x}, ${edge.y})`);
+        });
+      }
     });
+
+    return;
   }
 }
 
 class ChessBoard {
   constructor() {
     this.board = new Graph();
+    this.knight = new Knight(0, 0);
   }
-
+  calculateDistance(node1, node2) {
+    let x1 = node1.x;
+    let y1 = node1.y;
+    let x2 = node2.x;
+    let y2 = node2.y;
+    let distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+    return distance;
+  }
   createWallNodes() {
     let wallNodes = [];
     for (let i = 1; i <= 6; i++) {
@@ -112,140 +183,41 @@ class ChessBoard {
   createBoardEdges() {
     this.board.nodesList.forEach((node) => {
       //corner nodes
-      //todo consider coordinates if x is 0 or 7 or y is 0 or 7 due to out of bounds
-      if (node.nodePositionType === "corner") {
-        if (node.x === 0 && node.y === 0) {
-          this.board.addEdge(this.board.findNodeInList(1, 0), node);
-          this.board.addEdge(this.board.findNodeInList(0, 1), node);
-          this.board.addEdge(this.board.findNodeInList(1, 1), node);
-        } else if (node.x === 0 && node.y === 7) {
-          this.board.addEdge(this.board.findNodeInList(0, 6), node);
-          this.board.addEdge(this.board.findNodeInList(1, 6), node);
-          this.board.addEdge(this.board.findNodeInList(1, 7), node);
-        } else if (node.x === 7 && node.y === 0) {
-          this.board.addEdge(this.board.findNodeInList(6, 0), node);
-          this.board.addEdge(this.board.findNodeInList(6, 1), node);
-          this.board.addEdge(this.board.findNodeInList(7, 1), node);
-        } else if (node.x === 7 && node.y === 7) {
-          this.board.addEdge(this.board.findNodeInList(6, 7), node);
-          this.board.addEdge(this.board.findNodeInList(6, 6), node);
-          this.board.addEdge(this.board.findNodeInList(7, 6), node);
-        }
-      }
-
-      //wall nodes
-      else if (node.nodePositionType === "wall") {
-        if (node.y === 0) {
-          this.board.addEdge(
-            this.board.findNodeInList(node.x - 1, node.y),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x + 1, node.y),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x, node.y + 1),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x - 1, node.y + 1),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x + 1, node.y + 1),
-            node,
-          );
-        } else if (node.y === 7) {
-          this.board.addEdge(
-            this.board.findNodeInList(node.x - 1, node.y),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x + 1, node.y),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x, node.y - 1),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x - 1, node.y - 1),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x + 1, node.y - 1),
-            node,
-          );
-        } else if (node.x === 0) {
-          this.board.addEdge(
-            this.board.findNodeInList(node.x, node.y - 1),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x, node.y + 1),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x + 1, node.y),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x + 1, node.y - 1),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x + 1, node.y + 1),
-            node,
-          );
-        } else if (node.x === 7) {
-          this.board.addEdge(
-            this.board.findNodeInList(node.x, node.y - 1),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x, node.y + 1),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x - 1, node.y),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x - 1, node.y - 1),
-            node,
-          );
-          this.board.addEdge(
-            this.board.findNodeInList(node.x - 1, node.y + 1),
-            node,
-          );
-        }
-      }
-      //normal nodes
-      else if (node.nodePositionType === "normal") {
-        this.board.addEdge(this.board.findNodeInList(node.x - 1, node.y), node);
-        this.board.addEdge(this.board.findNodeInList(node.x + 1, node.y), node);
-        this.board.addEdge(this.board.findNodeInList(node.x, node.y - 1), node);
-        this.board.addEdge(this.board.findNodeInList(node.x, node.y + 1), node);
-        this.board.addEdge(
-          this.board.findNodeInList(node.x - 1, node.y - 1),
-          node,
-        );
-        this.board.addEdge(
-          this.board.findNodeInList(node.x - 1, node.y + 1),
-          node,
-        );
-        this.board.addEdge(
-          this.board.findNodeInList(node.x + 1, node.y - 1),
-          node,
-        );
-        this.board.addEdge(
-          this.board.findNodeInList(node.x + 1, node.y + 1),
-          node,
-        );
-      }
+      this.board.addEdge(
+        this.board.findNodeInList(node.x + 1, node.y + 2),
+        node,
+      );
+      this.board.addEdge(
+        this.board.findNodeInList(node.x + 2, node.y + 1),
+        node,
+      );
+      this.board.addEdge(
+        this.board.findNodeInList(node.x - 1, node.y + 2),
+        node,
+      );
+      this.board.addEdge(
+        this.board.findNodeInList(node.x + 2, node.y - 1),
+        node,
+      );
+      this.board.addEdge(
+        this.board.findNodeInList(node.x + 1, node.y - 2),
+        node,
+      );
+      this.board.addEdge(
+        this.board.findNodeInList(node.x + 2, node.y + 1),
+        node,
+      );
+      this.board.addEdge(
+        this.board.findNodeInList(node.x - 2, node.y - 1),
+        node,
+      );
+      this.board.addEdge(
+        this.board.findNodeInList(node.x - 1, node.y - 2),
+        node,
+      );
     });
   }
+
   sortChessBoardCoords() {
     let sortedChessBoard = [];
     for (let i = 0; i <= 7; i++) {
@@ -254,6 +226,39 @@ class ChessBoard {
       }
     }
     return sortedChessBoard;
+  }
+
+  findShortestPath(startNode, endNode) {
+    let queue = [];
+    let path = [];
+    let currentNode = startNode;
+    queue.push(startNode);
+    while (queue.length > 0 && currentNode !== endNode) {
+      let possibleMoves = [
+        [currentNode.x + 1, currentNode.y + 2],
+        [currentNode.x + 2, currentNode.y + 1],
+        [currentNode.x - 1, currentNode.y + 2],
+        [currentNode.x + 2, currentNode.y - 1],
+        [currentNode.x + 1, currentNode.y - 2],
+        [currentNode.x + 2, currentNode.y + 1],
+        [currentNode.x + 2, currentNode.y + 1],
+        [currentNode.x - 2, currentNode.y - 1],
+        [currentNode.x - 1, currentNode.y - 2],
+      ];
+      let possibleMovesNodes = [];
+      possibleMoves.forEach((move) => {
+        possibleMovesNodes.push(this.board.findNodeInList(move[0], move[1]));
+      });
+      let nodeDistances = [];
+      // possibleMovesNodes.forEach((node) => {
+      //   nodeDistances.push(this.calculateDistance(node, endNode));
+      // });
+      //console.log(possibleMovesNodes);
+      let minDistance = Math.min(...nodeDistances);
+      console.log(minDistance);
+    }
+
+    return;
   }
 
   printCornerNodes() {
@@ -289,9 +294,36 @@ chessBoard1.createBoard();
 
 console.log(chessBoard1.sortChessBoardCoords());*/
 
-// chessBoard1.board.printEdges();
+// chessBoard1.board.printNodes();
 //chessBoard1.printCornerNodes();
-chessBoard1.board.printEdges();
+// chessBoard1.board.printEdges();
 
 // let sevenFiveNode = chessBoard1.board.findNodeInList(7, 5);
 // console.log(sevenFiveNode.edges.forEach((edge) => console.log(edge.coords)));
+
+console.log(
+  chessBoard1.calculateDistance(
+    chessBoard1.board.findNodeInList(7, 7),
+    chessBoard1.board.findNodeInList(0, 0),
+  ),
+);
+// console.log(
+//   chessBoard1.knight.knightMoves(
+//     chessBoard1.board.findNodeInList(0, 0),
+//     chessBoard1.board.findNodeInList(7, 7),
+//   ),
+// );
+
+// console.log(
+//   chessBoard1.findShortestPath(
+//     chessBoard1.board.findNodeInList(0, 2),
+//     chessBoard1.board.findNodeInList(7, 7),
+//   ),
+// );
+
+console.log(
+  chessBoard1.board
+    .findNodeInList(3, 3)
+    .edges.forEach((edge) => console.log(edge.coords)),
+);
+chessBoard1.board.printEdges();
